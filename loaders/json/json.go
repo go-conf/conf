@@ -33,7 +33,7 @@ func (l *JsonLoader) Load(c *conf.Conf) error {
 	return err
 }
 
-func jsonFactory(*conf.Conf) conf.Loader {
+func jsonFactory() conf.Loader {
 	return &JsonLoader{}
 }
 

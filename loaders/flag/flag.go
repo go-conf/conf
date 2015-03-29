@@ -40,7 +40,7 @@ func (f *FlagLoader) Load(c *conf.Conf) error {
 	return err
 }
 
-func flagFactory(*conf.Conf) conf.Loader {
+func flagFactory() conf.Loader {
 	f := &FlagLoader{}
 	f.actions = setupFlagActions()
 	return f

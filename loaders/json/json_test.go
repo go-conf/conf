@@ -23,7 +23,7 @@ func TestJson(t *testing.T) {
 	jsonpath, err := tempJson()
 	assert.NoError(err)
 	dest := &jsonExample{Name: "Hello", Renamed1: "Bye", JsonFile: jsonpath}
-	assert.NoError(c.Parse(dest))
+	assert.NoError(c.Load(dest))
 	assert.Equal("Bob", dest.Name)
 	assert.Equal("Bye", dest.Renamed1)
 	os.Remove(jsonpath)

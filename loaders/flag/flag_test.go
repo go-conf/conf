@@ -17,7 +17,7 @@ func TestFlag(t *testing.T) {
 	args := []string{"--Name", "Bob", "--blah", "Hello"}
 	c := conf.New(&FlagLoader{Args: args, actions: setupFlagActions()})
 	dest := &flagExample{Name: "Hello", Renamed1: "Bye"}
-	assert.NoError(c.Parse(dest))
+	assert.NoError(c.Load(dest))
 	assert.Equal("Bob", dest.Name)
 	assert.Equal("Hello", dest.Renamed1)
 }
