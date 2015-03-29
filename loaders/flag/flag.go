@@ -76,7 +76,7 @@ type flagFill func()
 type flagProc struct {
 	*FlagLoader
 	conf  *conf.Conf
-	spec  conf.FieldSpec
+	spec  conf.Field
 	field reflect.Value
 	fill  flagFill
 }

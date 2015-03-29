@@ -7,7 +7,7 @@ import (
 
 type Conf struct {
 	loaders []Loader
-	fields  []FieldSpec
+	fields  []Field
 	Dest    interface{}
 	destVal reflect.Value
 }
@@ -40,32 +40,48 @@ func New(loaders ...interface{}) *Conf {
 
 // TODO refactor
 func (c *Conf) breakdown(s interface{}) {
-	v := reflect.ValueOf(s)
-	v = reflect.Indirect(v)
+	v := reflect.Indirect(reflect.ValueOf(s))
 	if v.Kind() != reflect.Struct {
 		// Don't know why you're doing this to me, structs only.
 		panic("Value must be a struct.")
 	}
 	c.destVal = v
-	t := v.Type()
-	c.fields = make([]FieldSpec, 0, t.NumField())
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		// TODO deal with anonymous structs and nested structs
-		if field.PkgPath != "" {
-			// skip anonymous fields
-			continue
+	c.fields = make([]Field, 0, v.Type().NumField())
+	var next = []Field{{Type: v.Type()}}
+	for len(next) > 0 {
+		current := next[0]
+		next = next[1:]
+		t := current.Type
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			// TODO deal with  nested structs
+			if field.PkgPath != "" {
+				// skip hidden fields
+				continue
+			}
+			path := make([]int, len(current.path)+1)
+			copy(path, current.path)
+			path[len(current.path)] = i
+
+			if field.Type.Kind() == reflect.Struct {
+				cName := current.ConfName
+				if !field.Anonymous {
+					cName += field.Name + "."
+				}
+				next = append(next, Field{path: path, Type: field.Type, ConfName: cName})
+				continue
+			}
+			confName, _ := getConfName(field)
+			spec := Field{
+				conf:     c,
+				path:     path,
+				RealName: field.Name,
+				ConfName: current.ConfName + confName,
+				Type:     field.Type,
+			}
+			spec.Default = spec.GetField().Interface()
+			c.fields = append(c.fields, spec)
 		}
-		confName, _ := getConfName(field)
-		spec := FieldSpec{
-			conf:     c,
-			Index:    i,
-			RealName: field.Name,
-			ConfName: confName,
-			Type:     field.Type,
-			Default:  v.Field(i).Interface(),
-		}
-		c.fields = append(c.fields, spec)
 	}
 }
 
@@ -104,13 +120,13 @@ func (c *Conf) Load(dest interface{}) (err error) {
 }
 
 // Get all Fields that this conf knows about.
-func (c *Conf) Fields() []FieldSpec {
+func (c *Conf) Fields() []Field {
 	return c.fields
 }
 
 // FieldByName gets the field with ConfName matching 'name'
 // If field not found, returns nil.
-func (c *Conf) FieldByName(name string) *FieldSpec {
+func (c *Conf) FieldByName(name string) *Field {
 	for _, f := range c.fields {
 		if f.ConfName == name {
 			return &f
@@ -131,23 +147,30 @@ func getConfName(field reflect.StructField) (confName string, flagTag []string) 
 	return
 }
 
-// FieldSpec is metadata inferred from reflecting into the struct that is given to conf.
-type FieldSpec struct {
+// Field is metadata inferred from reflecting into the struct that is given to conf.
+type Field struct {
 	conf     *Conf
-	Index    int          // The index within the struct
+	path     []int        // The index within the struct
 	RealName string       // The name of the field on the struct.
 	ConfName string       // The name of the field used for conf, like building flags
 	Type     reflect.Type // The type of the struct field
 	Default  interface{}  // The default value provided on this struct field
 }
 
-// Get the current value of the field referenced by this FieldSpec
-func (f FieldSpec) Get() interface{} {
+// Get the current value of the field referenced by this Field
+func (f Field) Get() interface{} {
 	//v := reflect.Indirect(reflect.Value(c.Dest))
 	return f.GetField().Interface()
 }
 
-// Get the reflect.Value pointing to the struct field this FieldSpec describes.
-func (f FieldSpec) GetField() reflect.Value {
-	return f.conf.destVal.Field(f.Index)
+// Get the reflect.Value pointing to the struct field this Field describes.
+func (f Field) GetField() reflect.Value {
+	v := f.conf.destVal
+	for _, index := range f.path {
+		if v.Kind() == reflect.Ptr {
+			v = v.Elem()
+		}
+		v = v.Field(index)
+	}
+	return v
 }
