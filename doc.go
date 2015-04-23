@@ -10,8 +10,5 @@ What conf does:
     * Makes it easy to write your own decoders for other formats
 
 
-Example:
-
-
 */
 package conf
